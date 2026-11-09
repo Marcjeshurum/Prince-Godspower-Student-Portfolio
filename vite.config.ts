@@ -13,11 +13,11 @@ export default defineConfig(() => {
     build: {
       rollupOptions: {
         input: {
-          main: path.resolve(__dirname, 'index.html'),
-          about: path.resolve(__dirname, 'about.html'),
-          projects: path.resolve(__dirname, 'projects.html'),
-          planner: path.resolve(__dirname, 'planner.html'),
-          contact: path.resolve(__dirname, 'contact.html'),
+          main: path.resolve(import.meta.dirname, 'index.html'),
+          about: path.resolve(import.meta.dirname, 'about.html'),
+          projects: path.resolve(import.meta.dirname, 'projects.html'),
+          planner: path.resolve(import.meta.dirname, 'planner.html'),
+          contact: path.resolve(import.meta.dirname, 'contact.html'),
         },
       },
     },

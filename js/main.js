@@ -648,7 +648,6 @@ function initVoiceStudio() {
     const savedAudio = localStorage.getItem(STORAGE_KEY);
     if (savedAudio) {
       audioPlayer.src = savedAudio;
-      if (statusText) statusText.textContent = 'Custom Voice Active';
     }
   } catch (err) {
     console.warn('LocalStorage access', err);
