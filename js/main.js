@@ -627,195 +627,32 @@ function initVoiceStudio() {
   const audioPlayer = document.getElementById('portfolio-audio-player');
   if (!audioPlayer) return;
 
-  const recordBtn = document.getElementById('record-voice-btn');
-  const uploadBtn = document.getElementById('upload-voice-btn');
-  const resetBtn = document.getElementById('reset-voice-btn');
-  const fileInput = document.getElementById('voice-file-input');
-  const statusText = document.getElementById('voice-status-text');
-  const statusDot = document.getElementById('voice-indicator-dot');
-  const timerDisplay = document.getElementById('voice-timer');
-  const warningBox = document.getElementById('voice-mic-warning');
-
   const STORAGE_KEY = 'pcg_custom_voice_audio';
-  let mediaRecorder = null;
-  let audioChunks = [];
-  let isRecording = false;
-  let timerInterval = null;
-  let secondsElapsed = 0;
 
-  // Restore saved custom voice note
+  // Automatic error recovery: if custom or hashed audio encounters an issue, fallback directly to media/audio-intro.mp3
+  audioPlayer.addEventListener('error', (e) => {
+    console.warn('Audio decoding fallback triggered:', e);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (err) {}
+    if (!audioPlayer.src.endsWith('media/audio-intro.mp3')) {
+      audioPlayer.src = 'media/audio-intro.mp3';
+      audioPlayer.load();
+    }
+  });
+
+  // Restore saved custom voice note only if it is a valid data URI
   try {
     const savedAudio = localStorage.getItem(STORAGE_KEY);
-    if (savedAudio) {
+    if (savedAudio && savedAudio.startsWith('data:audio/')) {
       audioPlayer.src = savedAudio;
+      audioPlayer.load();
+    } else if (savedAudio) {
+      // Clean up stale non-data URI strings (like expired blob: URLs)
+      localStorage.removeItem(STORAGE_KEY);
     }
   } catch (err) {
     console.warn('LocalStorage access', err);
-  }
-
-  function formatTime(totalSeconds) {
-    const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-    const secs = (totalSeconds % 60).toString().padStart(2, '0');
-    return `${mins}:${secs}`;
-  }
-
-  // 1. Microphone Voice Recording
-  if (recordBtn) {
-    recordBtn.addEventListener('click', async () => {
-      if (!isRecording) {
-        if (warningBox) warningBox.style.display = 'none';
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          if (warningBox) {
-            warningBox.style.display = 'block';
-            warningBox.innerHTML = '<strong style="color: var(--color-danger); display: block; margin-bottom: 0.25rem;">Microphone API Not Available</strong>' +
-              'Your current browser context does not provide direct microphone access. You can record a voice note on your phone (Voice Memos / WhatsApp) and click <strong>Upload Audio</strong> to use it!';
-          }
-          return;
-        }
-
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-          // Pick best supported MIME type
-          let chosenType = '';
-          const testTypes = [
-            'audio/webm;codecs=opus',
-            'audio/webm',
-            'audio/ogg;codecs=opus',
-            'audio/mp4'
-          ];
-          for (const t of testTypes) {
-            if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) {
-              chosenType = t;
-              break;
-            }
-          }
-
-          mediaRecorder = chosenType ? new MediaRecorder(stream, { mimeType: chosenType }) : new MediaRecorder(stream);
-          audioChunks = [];
-
-          mediaRecorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) audioChunks.push(e.data);
-          };
-
-          mediaRecorder.onstop = () => {
-            clearInterval(timerInterval);
-            if (timerDisplay) timerDisplay.style.display = 'none';
-
-            const mime = mediaRecorder.mimeType || chosenType || 'audio/webm';
-            const audioBlob = new Blob(audioChunks, { type: mime });
-            const blobUrl = URL.createObjectURL(audioBlob);
-            
-            // Set immediate blob playback
-            audioPlayer.src = blobUrl;
-            audioPlayer.load();
-            audioPlayer.play().catch(() => {});
-
-            if (statusText) statusText.textContent = 'Recorded Voice Saved!';
-
-            // Convert to base64 for persistent storage across page loads
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const base64Data = reader.result;
-              try {
-                localStorage.setItem(STORAGE_KEY, base64Data);
-              } catch (err) {
-                console.warn('LocalStorage limit for audio, active in session', err);
-              }
-            };
-            reader.readAsDataURL(audioBlob);
-
-            // Release microphone hardware tracks
-            stream.getTracks().forEach(track => track.stop());
-          };
-
-          mediaRecorder.start(200);
-          isRecording = true;
-          secondsElapsed = 0;
-
-          recordBtn.classList.add('recording');
-          recordBtn.innerHTML = '<span>Stop & Save</span>';
-          if (statusDot) statusDot.classList.add('recording');
-          if (statusText) statusText.textContent = 'Recording Now...';
-          
-          if (timerDisplay) {
-            timerDisplay.textContent = '00:00';
-            timerDisplay.style.display = 'inline-block';
-            timerInterval = setInterval(() => {
-              secondsElapsed++;
-              timerDisplay.textContent = formatTime(secondsElapsed);
-            }, 1000);
-          }
-        } catch (err) {
-          console.error('Microphone access error', err);
-          if (warningBox) {
-            warningBox.style.display = 'block';
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-              warningBox.innerHTML = '<strong style="color: var(--color-danger); display: block; margin-bottom: 0.25rem;">Microphone Permission Blocked</strong>' +
-                'Click the lock or site settings icon in your browser address bar and set <em>Microphone</em> to <strong>Allow</strong>. Alternatively, record on your phone and click <strong>Upload Audio</strong> above!';
-            } else {
-              warningBox.innerHTML = '<strong style="color: var(--color-danger); display: block; margin-bottom: 0.25rem;">Microphone Unavailable</strong>' +
-                'Unable to capture audio from your device (' + (err.message || 'Permission denied') + '). Please use the <strong>Upload Audio</strong> button to select your recorded audio file!';
-            }
-          }
-        }
-      } else {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
-        isRecording = false;
-        clearInterval(timerInterval);
-        recordBtn.classList.remove('recording');
-        recordBtn.innerHTML = '<span>Record Voice</span>';
-        if (statusDot) statusDot.classList.remove('recording');
-      }
-    });
-  }
-
-  // 2. Audio File Upload
-  if (uploadBtn && fileInput) {
-    uploadBtn.addEventListener('click', () => {
-      if (warningBox) warningBox.style.display = 'none';
-      fileInput.click();
-    });
-
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const blobUrl = URL.createObjectURL(file);
-      audioPlayer.src = blobUrl;
-      audioPlayer.load();
-      audioPlayer.play().catch(() => {});
-
-      if (statusText) statusText.textContent = 'Voice Note Uploaded!';
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const audioUrl = event.target.result;
-        try {
-          localStorage.setItem(STORAGE_KEY, audioUrl);
-        } catch (err) {
-          console.warn('Storage quota', err);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // 3. Reset to original sample
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-      } catch (e) {}
-      audioPlayer.src = 'media/audio-intro.mp3';
-      audioPlayer.load();
-      if (statusText) statusText.textContent = 'Default Sample';
-      if (warningBox) warningBox.style.display = 'none';
-      if (timerDisplay) timerDisplay.style.display = 'none';
-    });
   }
 }
 
