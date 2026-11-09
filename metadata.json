@@ -1,0 +1,8 @@
+{
+  "name": "Prince Chimenem Godspower - Portfolio & Academic Management",
+  "description": "Multi-page personal portfolio and academic management platform for Prince Chimenem Godspower (COS 106 Term Project), featuring data analytics showcase, dynamic planner, and contact system.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
