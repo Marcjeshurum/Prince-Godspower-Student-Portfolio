@@ -628,6 +628,10 @@ function initVoiceStudio() {
   if (!audioPlayer) return;
 
   const STORAGE_KEY = 'pcg_custom_voice_audio';
+  try {
+    // Clear any previous synthetic or test recording from localStorage so authentic voice plays
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (err) {}
 
   // Automatically update the duration badge with the natural audio length once loaded
   audioPlayer.addEventListener('loadedmetadata', () => {
@@ -639,30 +643,13 @@ function initVoiceStudio() {
     }
   });
 
-  // Automatic error recovery: if custom or hashed audio encounters an issue, fallback directly to media/audio-intro.mp3
+  // Automatic error recovery: if any format source fails, fallback explicitly to media/audio-intro.mp3
   audioPlayer.addEventListener('error', (e) => {
     console.warn('Audio decoding fallback triggered:', e);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (err) {}
     if (!audioPlayer.src.endsWith('media/audio-intro.mp3')) {
       audioPlayer.src = 'media/audio-intro.mp3';
       audioPlayer.load();
     }
   });
-
-  // Restore saved custom voice note only if it is a valid data URI
-  try {
-    const savedAudio = localStorage.getItem(STORAGE_KEY);
-    if (savedAudio && savedAudio.startsWith('data:audio/')) {
-      audioPlayer.src = savedAudio;
-      audioPlayer.load();
-    } else if (savedAudio) {
-      // Clean up stale non-data URI strings (like expired blob: URLs)
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch (err) {
-    console.warn('LocalStorage access', err);
-  }
 }
 
