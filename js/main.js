@@ -629,6 +629,16 @@ function initVoiceStudio() {
 
   const STORAGE_KEY = 'pcg_custom_voice_audio';
 
+  // Automatically update the duration badge with the natural audio length once loaded
+  audioPlayer.addEventListener('loadedmetadata', () => {
+    if (audioPlayer.duration && !isNaN(audioPlayer.duration) && isFinite(audioPlayer.duration)) {
+      const mins = Math.floor(audioPlayer.duration / 60);
+      const secs = Math.floor(audioPlayer.duration % 60).toString().padStart(2, '0');
+      const statusText = document.getElementById('voice-status-text');
+      if (statusText) statusText.textContent = `${mins}:${secs}`;
+    }
+  });
+
   // Automatic error recovery: if custom or hashed audio encounters an issue, fallback directly to media/audio-intro.mp3
   audioPlayer.addEventListener('error', (e) => {
     console.warn('Audio decoding fallback triggered:', e);
